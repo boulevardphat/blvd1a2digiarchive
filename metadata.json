@@ -1,0 +1,8 @@
+{
+  "name": "Remix 26/9 Boulevard1st (DigiPort ed.)",
+  "description": "",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..100,100..900;1,62..100,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@900&display=swap');
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Turista';
+  src: url('/fonts/Turista Gorda NF W01 Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ArialCustom';
+  src: url('/fonts/ARIAL.TTF') format('truetype'),
+       url('/fonts/ArialCE.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vespertine';
+  src: url('/fonts/vespertine Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+@theme {
+  --font-archivo: "Archivo", sans-serif;
+  --font-be-vietnam: "Be Vietnam Pro", sans-serif;
+  --font-turista: "Turista", sans-serif;
+  --font-arial: "ArialCustom", "Arial", sans-serif;
+  --font-vespertine: "Vespertine", sans-serif;
+}
+
+.font-turista {
+  font-family: 'Turista', sans-serif;
+}
+
+.font-arial-custom {
+  font-family: 'ArialCustom', Arial, Helvetica, sans-serif;
+}
+
+.font-vespertine {
+  font-family: 'Vespertine', sans-serif;
+}
+
+.brat-box {
+  /* The signature Charli XCX Brat green */
+  background-color: #8ace00; 
+  
+  /* Layout to perfectly center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  /* Square proportions */
+  width: min(500px, 90vw);
+  height: min(500px, 90vw);
+}
+
+.brat-box span {
+  /* Font styling */
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: clamp(3rem, 10vw, 85px);
+  letter-spacing: -3.5px;
+  color: #000000;
+
+  /* The "Brat Blur" low-res effect */
+  filter: blur(1.8px);
+  
+  /* Optional: Stretches the text slightly vertical to match the cover */
+  transform: scaleY(1.08); 
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.font-archivo-narrow {
+  font-family: "Archivo", sans-serif;
+  font-variation-settings: "wdth" 62;
+}
+
+.font-archivo-wide {
+  font-family: "Archivo", sans-serif;
+  font-variation-settings: "wdth" 100;
+}
+
+.hover-force-italic {
+  display: inline-block;
+  transform-origin: left center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+  will-change: transform;
+}
+
+.hover-force-italic:hover {
+  transform: skewX(-14deg);
+}
+
+.text-stroke-white {
+  -webkit-text-stroke: 3px rgba(255, 255, 255, 0.95);
+  color: transparent;
+}
+
+.font-phat {
+  font-family: "Archivo", sans-serif;
+  font-variation-settings: "wdth" 62, "wght" 100;
+  letter-spacing: -0.08em;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in-custom {
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hide scrollbars but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+@keyframes ledFlicker {
+  0%, 79%, 81%, 85%, 89%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.4);
+  }
+  80% {
+    opacity: 0.85;
+    filter: brightness(0.85);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+  }
+  82% {
+    opacity: 0.95;
+    filter: brightness(0.95);
+  }
+  86% {
+    opacity: 0.75;
+    filter: brightness(0.75);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+  }
+  88% {
+    opacity: 0.98;
+    filter: brightness(0.98);
+  }
+}
+
+.animate-led-flicker {
+  animation: ledFlicker 4s infinite alternate;
+}
+
+/* Styling for the split-flap board */
+hotfx-split-flap {
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+  font-size: 32px !important;
+  display: block !important;
+  width: fit-content !important;
+  height: fit-content !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Responsive Facebook Video Embed (Boulevard1st: sharp edges, no border, fully scalable) */
+.fb-video,
+.fb-video > span,
+.fb-video iframe {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  border: none !important;
+  border-radius: 0px !important;
+}

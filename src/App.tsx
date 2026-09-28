@@ -1,0 +1,2454 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
+import { IntroClock } from './components/IntroClock';
+import { VespertineBackground } from './components/VespertineBackground';
+import { ZFoldBooklet, BLVD18_PAGES, BLVD17_PAGES, BLVD17_INSTAGRAM_PAGES, BLVD16_PAGES, Zone16Carousel } from './components/ZFoldBooklet';
+import { HvocIntroScreen, HVOC_LOGO_URL } from './components/HvocIntroScreen';
+import { TntnIntroScreen, TNTN_CHV_LOGO_URL, CDTTBP_VII_TNTN_LOGO_URL } from './components/TntnIntroScreen';
+import { SPOTIFLYER_PAGES } from './components/SpotiflyerVerticalZFold';
+import { ReimaginedIntroScreen } from './components/ReimaginedIntroScreen';
+import { OthersIntroScreen } from './components/OthersIntroScreen';
+import { CHV_BADGES_ALL_URLS, REIMAGINED_PROJECTS } from './data/chvBadges';
+import { AppLanguage, PortfolioMode, SceneState } from './types';
+
+const TOC_DIGIT_DATA: Record<number, { viewBox: string; d: string }> = {
+  1: {
+    viewBox: "105 0 519 689",
+    d: "M624 689L105 689L105 535L268 535L268 224L105 224L105 108Q152 105 205.50 89Q259 73 310 49Q361 25 400 0L467 0L467 535L624 535"
+  },
+  2: {
+    viewBox: "49 0 570 700",
+    d: "M619 700L49 700L49 652Q49 610 67 572.50Q85 535 115.50 501.50Q146 468 183 437.50Q220 407 259 378Q299 348 334 323Q369 298 391 272Q413 246 413 214Q413 195 404 178.50Q395 162 376.50 151.50Q358 141 327 141Q296 141 274.50 153Q253 165 241.50 186.50Q230 208 230 235L230 255L52 255Q51 249 51 243.50Q51 238 51 233Q51 162 83.50 110Q116 58 181.50 29Q247 0 346 0Q407 0 456 14.50Q505 29 539.50 56.50Q574 84 592.50 122Q611 160 611 207Q611 253 594 290Q577 327 546 359Q515 391 475 421Q435 451 388 482Q364 498 349 508.50Q334 519 327 524Q320 529 318 531L619 531"
+  },
+  3: {
+    viewBox: "42 0 583 712",
+    d: "M335 712Q235 712 170 685Q105 658 73.50 613Q42 568 42 514L42 493L218 493L218 512Q218 538 243.50 556.50Q269 575 322 575Q380 575 403 549Q426 523 426 483Q426 458 416.50 442.50Q407 427 391.50 419Q376 411 356 411L283 411L283 288L340 288Q360 288 375.50 280Q391 272 400.50 256Q410 240 410 216Q410 195 400 177Q390 159 370.50 148Q351 137 322 137Q297 137 276 146.50Q255 156 243 171Q231 186 231 203L231 213L64 213L64 188Q64 136 96 93.50Q128 51 189.50 25.50Q251 0 339 0Q424 0 483.50 25.50Q543 51 574 93.50Q605 136 605 187Q605 221 592.50 252Q580 283 557.50 305.50Q535 328 505 339L505 343Q562 361 593.50 405.50Q625 450 625 513Q623 568 591.50 613Q560 658 497 685Q434 712 335 712"
+  },
+  4: {
+    viewBox: "23 0 621 700",
+    d: "M548 700L358 700L358 559L23 559L23 410Q56 362 91.50 296.50Q127 231 160 154.50Q193 78 215 0L411 0Q407 33 389 75Q371 117 344 164Q317 211 285 256.50Q253 302 221 342.50Q189 383 160 412L358 412L358 269Q371 251 386.50 225Q402 199 418 170.50Q434 142 446 114.50Q458 87 463 66L548 66L548 412L644 412L644 559L548 559"
+  },
+  5: {
+    viewBox: "39 0 586 700",
+    d: "M343 700Q243 700 175.50 670.50Q108 641 73.50 588.50Q39 536 39 466L215 466Q215 492 227 514Q239 536 263 549Q287 562 322 562Q357 562 380.50 548.50Q404 535 416 512Q428 489 428 460Q428 430 416 407Q404 384 380.50 370.50Q357 357 323 357Q290 357 271 367Q252 377 242.50 388.50Q233 400 227 407L69 385L98 0L574 0L574 170L247 170L239 274Q239 274 256.50 263Q274 252 307 240.50Q340 229 386 229Q459 229 512.50 257Q566 285 595.50 337.50Q625 390 625 463Q625 528 590.50 582Q556 636 493 668Q430 700 343 700"
+  }
+};
+
+const TOC_DEFAULT_LINES: Record<number, number> = {
+  1: 1,
+  2: 2,
+  3: 2,
+  4: 1,
+  5: 1,
+};
+
+function TocItem({
+  digit,
+  children,
+  onClick
+}: {
+  digit: number;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const labelRef = React.useRef<HTMLSpanElement>(null);
+  const [lineCount, setLineCount] = React.useState<number>(TOC_DEFAULT_LINES[digit] || 1);
+
+  React.useLayoutEffect(() => {
+    const el = labelRef.current;
+    if (!el) return;
+    const update = () => {
+      const computed = window.getComputedStyle(el);
+      const fs = parseFloat(computed.fontSize) || 16;
+      const lh = parseFloat(computed.lineHeight) || (fs * 1.375);
+      const h = el.offsetHeight;
+      const lines = Math.max(1, Math.round(h / lh));
+      setLineCount(lines);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children]);
+
+  // Exact typographic height:
+  // 1 line: 0.70em (cap-height)
+  // n lines: ((n - 1) * 1.375 + 0.70)em
+  const digitHeight = `${(lineCount - 1) * 1.375 + 0.70}em`;
+
+  return (
+    <div 
+      onClick={onClick}
+      className="w-fit flex flex-row items-start gap-2.5 sm:gap-3.5 lg:gap-4.5 cursor-pointer group"
+    >
+      <span 
+        className="shrink-0 w-[1.15em] sm:w-[1.25em] flex items-center select-none"
+        style={{ marginTop: '0.3375em', height: digitHeight }}
+      >
+        <svg 
+          viewBox={TOC_DIGIT_DATA[digit].viewBox} 
+          preserveAspectRatio="none" 
+          className="w-full h-full block fill-[#89CC04] select-none pointer-events-none"
+        >
+          <path d={TOC_DIGIT_DATA[digit].d} />
+        </svg>
+      </span>
+      <span ref={labelRef} className="hover-force-italic hover:text-white cursor-pointer">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+export default function App() {
+
+  const [scene, setScene] = useState<SceneState>('pre-intro');
+  const [initialLoadingProgress, setInitialLoadingProgress] = useState(0);
+  const [blvdLoadingProgress, setBlvdLoadingProgress] = useState(0);
+  const [hvocLoadingProgress, setHvocLoadingProgress] = useState(0);
+  const [tntnLoadingProgress, setTntnLoadingProgress] = useState(0);
+  const [reimaginedLoadingProgress, setReimaginedLoadingProgress] = useState(0);
+  const [othersLoadingProgress, setOthersLoadingProgress] = useState(0);
+  const [activeBlvdZone, setActiveBlvdZone] = useState<'zone-blvd' | 'zone-18' | 'zone-17' | 'zone-16'>('zone-blvd');
+  const [activeZoneIndex, setActiveZoneIndex] = useState<number>(0);
+  const [bookletViewMode, setBookletViewMode] = useState<'3d' | 'carousel' | 'instagram'>('3d');
+  const [zone16ViewMode, setZone16ViewMode] = useState<'carousel' | 'instagram'>('carousel');
+  const [portfolioMode, setPortfolioMode] = useState<PortfolioMode>(() => {
+    try {
+      const saved = localStorage.getItem('blvd_portfolio_mode');
+      if (saved === 'employer-club' || saved === 'individual') return saved;
+    } catch (e) {}
+    return 'employer-club';
+  });
+  const [language, setLanguage] = useState<AppLanguage>(() => {
+    try {
+      const saved = localStorage.getItem('blvd_language');
+      if (saved === 'vi' || saved === 'en') return saved;
+    } catch (e) {}
+    return 'vi';
+  });
+  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+  const bgAudioRef = React.useRef<HTMLAudioElement>(null);
+
+  // Trạng thái tải và giải mã (decode) hoàn tất của ảnh nền Vespertine gốc
+  const [vespertineLoaded, setVespertineLoaded] = useState(false);
+  const vespertineLoadedRef = React.useRef(false);
+  const pendingIntroCompleteRef = React.useRef(false);
+
+  // Tải và decode trước ảnh nền Vespertine giao diện chính với độ ưu tiên cao nhất ngay khi mở app
+  useEffect(() => {
+    let active = true;
+    const img = new Image();
+    img.src = 'https://i.ibb.co/vy4ykmw/vespertine.png';
+    const markLoaded = async () => {
+      if (!active) return;
+      try {
+        if ('decode' in img) {
+          await img.decode();
+        }
+      } catch (e) {}
+      if (!active) return;
+      vespertineLoadedRef.current = true;
+      setVespertineLoaded(true);
+      if (pendingIntroCompleteRef.current) {
+        pendingIntroCompleteRef.current = false;
+        setScene('main-app');
+      }
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+      markLoaded();
+    } else {
+      img.onload = markLoaded;
+      img.onerror = () => {
+        setTimeout(() => {
+          if (!active) return;
+          const retry = new Image();
+          retry.src = 'https://i.ibb.co/vy4ykmw/vespertine.png';
+          retry.onload = markLoaded;
+        }, 800);
+      };
+    }
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Dynamic TOC Image Frame Algorithm: Ẩn/hiện dựa theo khoảng cách thực tế từ dòng dưới MỤC LỤC đến cạnh trái danh sách
+  const computeShowTocFrame = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    // 1. Luôn ẩn ở giao diện dọc hoàn toàn (portrait)
+    const isPortrait = window.matchMedia('(orientation: portrait)').matches || window.innerHeight > window.innerWidth;
+    if (isPortrait) return false;
+
+    // 2. Không gian chiều cao thấp (mobile xoay ngang có chiều cao < 520px, không đủ không gian chứa khung ảnh)
+    if (window.innerHeight < 520) return false;
+
+    // 3. Đo đạc hình học viewport độc lập (không bị ảnh hưởng khi Page 2 nằm ngoài màn hình khi scroll):
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Viewport dưới 1150px (toàn bộ mobile ngang, tablet ngang nhỏ/vừa như iPad 1024x768):
+    // Khoảng cách từ dòng dưới MỤC LỤC đến danh sách quá ngắn, khung sẽ bị đè bẹp -> Tắt hoàn toàn
+    if (vw < 1150) return false;
+
+    const pad = vw >= 1024 ? 128 : vw >= 768 ? 96 : 32;
+    const tagWidth = (vh * 0.88) * (160 / 720); // Bề rộng thực tế của chữ MỤC LỤC với aspect ratio 160/720
+    const listEstimatedWidth = 480; // Chiều rộng dòng chữ dài nhất trong danh sách
+    const availableGap = vw - pad - tagWidth - listEstimatedWidth;
+
+    const estimatedFrameHeight = vh * 0.88;
+    const frameAspectRatio = availableGap / (estimatedFrameHeight || 1);
+
+    // Chỉ bật trên Desktop / Laptop rộng khi khoảng cách >= 380px và tỉ lệ khung ảnh >= 0.52
+    return availableGap >= 380 && frameAspectRatio >= 0.52;
+  };
+
+  const tocPageRef = React.useRef<HTMLDivElement>(null);
+  const tocTagRef = React.useRef<HTMLDivElement>(null);
+  const tocListInnerRef = React.useRef<HTMLDivElement>(null);
+  const [showTocFrame, setShowTocFrame] = useState<boolean>(computeShowTocFrame);
+
+  React.useLayoutEffect(() => {
+    const updateTocFrame = () => {
+      setShowTocFrame(computeShowTocFrame());
+    };
+
+    updateTocFrame();
+    window.addEventListener('resize', updateTocFrame);
+    window.addEventListener('orientationchange', updateTocFrame);
+
+    return () => {
+      window.removeEventListener('resize', updateTocFrame);
+      window.removeEventListener('orientationchange', updateTocFrame);
+    };
+  }, [language]);
+
+  const handlePhoneClick = () => {
+    try {
+      navigator.clipboard.writeText('0833939468');
+      setPhoneCopied(true);
+      setTimeout(() => setPhoneCopied(false), 2000);
+    } catch (err) {}
+  };
+
+  const handleEmailClick = () => {
+    try {
+      navigator.clipboard.writeText('thuanphat26092008@gmail.com');
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2000);
+      window.location.href = 'mailto:thuanphat26092008@gmail.com';
+    } catch (err) {}
+  };
+
+  // Preload toàn bộ hình ảnh đặc biệt là các ảnh ở giao diện chính và BLVD trước khi vào intro
+  useEffect(() => {
+    if (scene !== 'pre-intro') return;
+
+    setInitialLoadingProgress(0);
+
+    const mainAppImages = [
+      'https://i.ibb.co/tP3rK5bg/ultrayoung.jpg',
+      'https://i.ibb.co/Nd6BpwZ2/young.jpg',
+      'https://i.ibb.co/vy4ykmw/vespertine.png',
+      'https://i.ibb.co/ccfZG4Zk/n-n-blvd18.webp',
+      'https://i.ibb.co/RTw2phXD/canva.jpg',
+      'https://i.ibb.co/pBXrq6cf/affinity.jpg',
+      'https://i.ibb.co/Pv9VfwzX/edits.webp',
+      'https://i.ibb.co/N66hJX5h/ibispaint.png',
+      'https://i.ibb.co/7JyGd3tX/google-AIstudio.png',
+      'https://i.ibb.co/v4h21FLG/filmora.png',
+      'https://i.ibb.co/TD9mb1pB/avatar.jpg',
+      HVOC_LOGO_URL,
+      TNTN_CHV_LOGO_URL,
+      CDTTBP_VII_TNTN_LOGO_URL,
+    ];
+
+    const blvdImages = [
+      ...BLVD18_PAGES.map((p) => p.front),
+      ...BLVD18_PAGES.map((p) => p.back),
+      ...BLVD17_PAGES.map((p) => p.front),
+      ...BLVD17_PAGES.map((p) => p.back),
+      ...BLVD17_INSTAGRAM_PAGES,
+      ...BLVD16_PAGES,
+      '/logo_blvd17.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5B%23BLVD%5D%20%23BLVD17/logo%20%23blvd17.webp',
+    ];
+
+    const allInitialAssets = Array.from(new Set([...mainAppImages, ...blvdImages]));
+    const totalAssets = allInitialAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    const progressInterval = setInterval(() => {
+      // vespertine.png là ảnh nền giao diện chính quyết định, nếu chưa load xong thì tiến trình tối đa chỉ được lên 85%
+      const baseRatio = loadedCount / totalAssets;
+      const targetPercent = Math.round(baseRatio * 100);
+      const cappedTarget = vespertineLoadedRef.current ? targetPercent : Math.min(85, targetPercent);
+
+      if (currentDisplayProgress < cappedTarget) {
+        currentDisplayProgress += 1;
+        setInitialLoadingProgress(currentDisplayProgress);
+      } else if (vespertineLoadedRef.current && currentDisplayProgress < 100) {
+        currentDisplayProgress += 1;
+        setInitialLoadingProgress(currentDisplayProgress);
+      }
+
+      // ĐIỀU KIỆN BẮT BUỘC: Ảnh nền Vespertine PHẢI load & decode xong hoàn toàn (vespertineLoadedRef.current === true)
+      // VÀ toàn bộ ảnh đã tải, tiến trình hiển thị đạt 100%
+      if (
+        vespertineLoadedRef.current &&
+        loadedCount >= totalAssets &&
+        currentDisplayProgress >= 100 &&
+        !isFinished
+      ) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        setTimeout(() => {
+          setScene('intro-play');
+        }, 350);
+      }
+    }, 14);
+
+    // Safety fallback timer sau 30s đề phòng mạng người dùng chập chờn, nhưng CHỈ ĐƯỢC CHUYỂN KHI VESPERTINE ĐÃ LOAD XONG
+    const safetyTimer = setTimeout(() => {
+      if (vespertineLoadedRef.current && !isFinished) {
+        isFinished = true;
+        setInitialLoadingProgress(100);
+        clearInterval(progressInterval);
+        setTimeout(() => {
+          setScene('intro-play');
+        }, 350);
+      }
+    }, 30000);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    allInitialAssets.forEach((url) => {
+      const img = new Image();
+      img.onload = () => {
+        if ('decode' in img) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  const handleBlvdClick = () => {
+    // Bắt đầu chuỗi BLVD: hiện màn hình LOADING với tiến trình tải thật từ 0 đến 100%
+    setBlvdLoadingProgress(0);
+    setActiveZoneIndex(0);
+    setActiveBlvdZone('zone-blvd');
+    setBookletViewMode('3d');
+    setZone16ViewMode('carousel');
+    setScene('blvd-loading');
+  };
+
+  const handleHvocClick = () => {
+    // Bắt đầu chuỗi HVOC: hiện màn hình LOADING như #blvd trước khi mở trang giới thiệu
+    setHvocLoadingProgress(0);
+    setScene('hvoc-loading');
+  };
+
+  const handleTntnClick = () => {
+    // Bắt đầu chuỗi TNTN: hiện màn hình LOADING như HVOC và #blvd trước khi mở trang giới thiệu
+    setTntnLoadingProgress(0);
+    setScene('tntn-loading');
+  };
+
+  const handleReimaginedClick = () => {
+    // Bắt đầu chuỗi [REIMAGINED]: hiện màn hình LOADING trước khi mở trang giới thiệu
+    setReimaginedLoadingProgress(0);
+    setScene('reimagined-loading');
+  };
+
+  const handleOthersClick = () => {
+    // Bắt đầu chuỗi KHÁC: hiện màn hình LOADING như các mục khác trước khi mở trang giới thiệu
+    setOthersLoadingProgress(0);
+    setScene('others-loading');
+  };
+
+  // Quản lý tiến trình tải tài nguyên của HVOC
+  useEffect(() => {
+    if (scene !== 'hvoc-loading') return;
+
+    setHvocLoadingProgress(0);
+
+    const hvocAssets = [
+      HVOC_LOGO_URL,
+      // Icon pack Canva & Filmora
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/canva.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/filmora.webp',
+      // Dự án 1: Bưu điện HVOC (3 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20B%C6%B0u%20%C4%91i%E1%BB%87n%20HVOC/Ch%C3%ADnh.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20B%C6%B0u%20%C4%91i%E1%BB%87n%20HVOC/Qu%E1%BA%A3ng%20b%C3%A1.png',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20B%C6%B0u%20%C4%91i%E1%BB%87n%20HVOC/%E1%BA%A2nh%20b%C3%ACa%20Facebook.webp',
+      // Dự án 2: HVOC Đường đến Olympia 7 (8 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Poster.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Khung%20avatar.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Th%E1%BA%BB%20%C4%91eo.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/D%C3%A2y%20%C4%91eo%20ch%C3%ADnh%20th%E1%BB%A9c.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/D%C3%A2y%20%C4%91eo%20b%E1%BA%A3n%20ph%E1%BB%A5.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Template%20m%E1%BB%9F%20%C4%91%E1%BA%A7u.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Template%20ch%C3%ADnh.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20DDO%207/Template%20k%E1%BA%BFt%20th%C3%BAc.webp',
+      // Dự án 3: HVOC The Amazing Race 8 (2 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20TAR%208/Th%E1%BA%BB%20%C4%91eo.webp',
+      'https://images.unsplash.com/photo-1588345921523-c2dcdb7f1dcd?auto=format&fit=crop&w=1200&q=80',
+      // Dự án 4: HVOC Club Day (2 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20Club%20Day/Khung%20ptb%20bi%E1%BB%83n.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20HVOC%20Club%20Day/Khung%20ptb%20n%C3%BAi.webp',
+      // Dự án 5: Bài đăng thường xuyên BONDING & Máu đông (2 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20BONDING/%5BHVOC%5D%20BONDING.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5BHVOC%5D%20M%C3%A1u%20%C4%91%C3%B4ng/%5BHVOC%5D%20M%C3%A1u%20%C4%91%C3%B4ng.webp',
+    ];
+
+    const uniqueAssets = Array.from(new Set(hvocAssets));
+    const totalAssets = uniqueAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    // Tween làm mượt tiến trình 0 -> 100% khi toàn bộ tài nguyên của tất cả dự án HVOC tải về
+    const progressInterval = setInterval(() => {
+      const realTarget = Math.round((loadedCount / totalAssets) * 100);
+      if (currentDisplayProgress < realTarget) {
+        currentDisplayProgress += 1;
+        setHvocLoadingProgress(Math.min(100, currentDisplayProgress));
+      }
+      if (loadedCount >= totalAssets && currentDisplayProgress >= 100 && !isFinished) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        setTimeout(() => {
+          setScene('hvoc-intro');
+        }, 350);
+      }
+    }, 14);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    uniqueAssets.forEach(url => {
+      const img = new Image();
+      img.onload = () => {
+        if ('decode' in img) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    const safetyTimer = setTimeout(() => {
+      if (!isFinished) {
+        isFinished = true;
+        setHvocLoadingProgress(100);
+        clearInterval(progressInterval);
+        setTimeout(() => {
+          setScene('hvoc-intro');
+        }, 350);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  // Quản lý tiến trình tải tài nguyên của TNTN
+  useEffect(() => {
+    if (scene !== 'tntn-loading') return;
+
+    setTntnLoadingProgress(0);
+
+    const tntnAssets = [
+      TNTN_CHV_LOGO_URL,
+      CDTTBP_VII_TNTN_LOGO_URL,
+      ...SPOTIFLYER_PAGES,
+    ];
+
+    const uniqueAssets = Array.from(new Set(tntnAssets));
+    const totalAssets = uniqueAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    // Tween làm mượt tiến trình 0 -> 100% khi toàn bộ tài nguyên TNTN tải về
+    const progressInterval = setInterval(() => {
+      const realTarget = Math.round((loadedCount / totalAssets) * 100);
+      if (currentDisplayProgress < realTarget) {
+        currentDisplayProgress += 1;
+        setTntnLoadingProgress(Math.min(100, currentDisplayProgress));
+      }
+      if (loadedCount >= totalAssets && currentDisplayProgress >= 100 && !isFinished) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        setTimeout(() => {
+          setScene('tntn-intro');
+        }, 350);
+      }
+    }, 14);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    uniqueAssets.forEach(url => {
+      const img = new Image();
+      img.onload = () => {
+        if ('decode' in img) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    const safetyTimer = setTimeout(() => {
+      if (!isFinished) {
+        isFinished = true;
+        setTntnLoadingProgress(100);
+        clearInterval(progressInterval);
+        setTimeout(() => {
+          setScene('tntn-intro');
+        }, 350);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  // Quản lý tiến trình tải tài nguyên của [REIMAGINED] (Thẻ học sinh CHV & Thư chúc mừng HCMUSSH)
+  useEffect(() => {
+    if (scene !== 'reimagined-loading') return;
+
+    setReimaginedLoadingProgress(0);
+
+    const reimaginedAssets = [
+      ...CHV_BADGES_ALL_URLS,
+      REIMAGINED_PROJECTS.hcmusshLetter.frontUrl,
+      REIMAGINED_PROJECTS.hcmusshLetter.backUrl,
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/canva.webp',
+      'https://images.unsplash.com/photo-1588345921523-c2dcdb7f1dcd?auto=format&fit=crop&w=1200&q=80',
+    ];
+
+    const uniqueAssets = Array.from(new Set(reimaginedAssets));
+    const totalAssets = uniqueAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    const progressInterval = setInterval(() => {
+      const realTarget = Math.round((loadedCount / totalAssets) * 100);
+      if (currentDisplayProgress < realTarget) {
+        currentDisplayProgress += 1;
+        setReimaginedLoadingProgress(Math.min(100, currentDisplayProgress));
+      }
+      if (loadedCount >= totalAssets && currentDisplayProgress >= 100 && !isFinished) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        setTimeout(() => {
+          setScene('reimagined-intro');
+        }, 350);
+      }
+    }, 14);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    uniqueAssets.forEach(url => {
+      const img = new Image();
+      img.onload = () => {
+        if ('decode' in img) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    const safetyTimer = setTimeout(() => {
+      if (!isFinished) {
+        isFinished = true;
+        setReimaginedLoadingProgress(100);
+        clearInterval(progressInterval);
+        setTimeout(() => {
+          setScene('reimagined-intro');
+        }, 350);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  // Quản lý tiến trình tải toàn bộ tài nguyên của mục KHÁC (OTHERS)
+  useEffect(() => {
+    if (scene !== 'others-loading') return;
+
+    setOthersLoadingProgress(0);
+
+    const othersAssets = [
+      // Cho Phát - Đà Lạt 16 (8 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/1.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/2.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/3.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/4.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/5.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/6.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/7.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD16/8.webp',
+      // Cho Phát - Đà Lạt 17 (5 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD17/1.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD17/2.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD17/3.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD17/4.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Thuan%20Phat%2C%20Boulevard%20et%20ville%20de%20Da%20Lat/%23BLVD17/5.webp',
+      // Cho Phát - Museum of Fine Arts (6 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/1.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/2.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/3.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/4.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/5.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Museum%20of%20Fine%20Arts/6.webp',
+      // Cho Phát - Kỉ yếu 12A2 (Thẻ quà tặng & Thư mời)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/K%E1%BB%89%20y%E1%BA%BFu/M%E1%BA%B7t%20tr%C6%B0%E1%BB%9Bc%20th%E1%BA%BB%20qu%C3%A0.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/K%E1%BB%89%20y%E1%BA%BFu/M%E1%BA%B7t%20sau%20th%E1%BA%BB%20qua.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/K%E1%BB%89%20y%E1%BA%BFu/Th%C6%B0%20m%E1%BB%9Di.webp',
+      // Cho Phát - Bảo vệ môi trường
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/B%E1%BA%A3o%20v%E1%BB%87%20m%C3%B4i%20tr%C6%B0%E1%BB%9Dng/b%E1%BA%A3o%20v%E1%BB%87%20m%C3%B4i%20tr%C6%B0%E1%BB%9Dng.webp',
+      // Cho Phát - brat (3 ảnh)
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/brat/brat1.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/brat/brat2.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/brat/brat3.webp',
+      // Cho Bạn của Phát - Random
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Random/%E7%A7%81%E3%81%AF%E3%82%B2%E3%82%A4%E3%81%AE%E7%94%B7%E6%80%A7%E3%81%A7%E3%81%99.webp',
+      // Cho Bạn của Phát - 4 Posters
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Poster/KA.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Poster/MA.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Poster/MU.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/Poster/%C4%90N.webp',
+      // Cho 12A2 - Posters & Quy trình
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/%5BA2K28%5D%2019_11_2025/%5BA2K28%5D%2019_11_2025.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/%5BA2K28%5D%2020_10_2025/%5BA2K28%5D%2020_10_2026.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026%20%28B%C6%B0%E1%BB%9Bc%200%29.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026%20(B%C6%B0%E1%BB%9Bc%201).webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Individual/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026/%5BA2K28%5D%20H%E1%BA%ADu%20T%E1%BB%91t%20nghi%E1%BB%87p%202026%20(B%C6%B0%E1%BB%9Bc%202).webp',
+      // Icon packs
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/canva.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/ibispaint.webp',
+      'https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/edits.webp',
+    ];
+
+    const uniqueAssets = Array.from(new Set(othersAssets));
+    const totalAssets = uniqueAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    const progressInterval = setInterval(() => {
+      const realTarget = Math.round((loadedCount / totalAssets) * 100);
+      if (currentDisplayProgress < realTarget) {
+        currentDisplayProgress += 1;
+        setOthersLoadingProgress(Math.min(100, currentDisplayProgress));
+      }
+      if (loadedCount >= totalAssets && currentDisplayProgress >= 100 && !isFinished) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        setTimeout(() => {
+          setScene('others-intro');
+        }, 350);
+      }
+    }, 14);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    uniqueAssets.forEach((url) => {
+      const img = new Image();
+      img.onload = () => {
+        if ('decode' in img) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    const safetyTimer = setTimeout(() => {
+      if (!isFinished) {
+        isFinished = true;
+        setOthersLoadingProgress(100);
+        clearInterval(progressInterval);
+        setTimeout(() => {
+          setScene('others-intro');
+        }, 350);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  // Quản lý tiến trình tải toàn bộ hình ảnh & model của BLVD (Zone 18, 17, 16)
+  useEffect(() => {
+    if (scene !== 'blvd-loading') return;
+
+    setBlvdLoadingProgress(0);
+
+    const allBlvdAssets = [
+      // Zone 18: 6 tờ x 2 mặt = 12 ảnh + background
+      ...BLVD18_PAGES.map(p => p.front),
+      ...BLVD18_PAGES.map(p => p.back),
+      "https://i.ibb.co/ccfZG4Zk/n-n-blvd18.webp",
+      // Zone 17: 4 tờ x 2 mặt = 8 ảnh + logo local & fallback
+      ...BLVD17_PAGES.map(p => p.front),
+      ...BLVD17_PAGES.map(p => p.back),
+      "/logo_blvd17.webp",
+      "https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5B%23BLVD%5D%20%23BLVD17/logo%20%23blvd17.webp",
+      // Zone 16: 10 ảnh
+      ...BLVD16_PAGES,
+    ];
+
+    const uniqueAssets = Array.from(new Set(allBlvdAssets));
+    const totalAssets = uniqueAssets.length;
+    let loadedCount = 0;
+    let currentDisplayProgress = 0;
+    let isFinished = false;
+
+    // Tween làm mượt tiến trình 0 -> 100% khi tài nguyên tải về
+    const progressInterval = setInterval(() => {
+      const realTarget = Math.round((loadedCount / totalAssets) * 100);
+      if (currentDisplayProgress < realTarget) {
+        currentDisplayProgress += 1;
+        setBlvdLoadingProgress(currentDisplayProgress);
+      }
+      // Phải load hết toàn bộ ảnh và model, đồng thời thanh tiến trình LOADING đã lên đủ 100%
+      if (loadedCount >= totalAssets && currentDisplayProgress >= 100 && !isFinished) {
+        isFinished = true;
+        clearInterval(progressInterval);
+        clearTimeout(safetyTimer);
+        // Dừng lại 400ms để người dùng thấy trọn vẹn 100% chữ LOADING trước khi sang phát
+        setTimeout(() => {
+          setScene('blvd-play');
+        }, 400);
+      }
+    }, 14);
+
+    const onAssetLoaded = () => {
+      loadedCount++;
+    };
+
+    uniqueAssets.forEach(url => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.decode) {
+          img.decode().catch(() => {}).finally(onAssetLoaded);
+        } else {
+          onAssetLoaded();
+        }
+      };
+      img.onerror = onAssetLoaded;
+      img.src = url;
+    });
+
+    // Safety timeout: tối đa 30 giây nếu kết nối mạng của user bị rớt gói tin trên 1 ảnh cụ thể
+    const safetyTimer = setTimeout(() => {
+      loadedCount = totalAssets;
+      currentDisplayProgress = 100;
+      setBlvdLoadingProgress(100);
+      setTimeout(() => {
+        setScene('blvd-play');
+      }, 400);
+    }, 30000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(safetyTimer);
+    };
+  }, [scene]);
+
+  // Preload secondary tool icons & avatar ONLY after arriving in main-app, freeing all bandwidth for intro & main backgrounds
+  useEffect(() => {
+    if (scene === 'main-app') {
+      const timer = setTimeout(() => {
+        const secondaryIcons = [
+          "https://i.ibb.co/RTw2phXD/canva.jpg",
+          "https://i.ibb.co/pBXrq6cf/affinity.jpg",
+          "https://i.ibb.co/Pv9VfwzX/edits.webp",
+          "https://i.ibb.co/N66hJX5h/ibispaint.png",
+          "https://i.ibb.co/7JyGd3tX/google-AIstudio.png",
+          "https://i.ibb.co/v4h21FLG/filmora.png",
+          "https://i.ibb.co/TD9mb1pB/avatar.jpg"
+        ];
+        secondaryIcons.forEach(url => {
+          const img = new Image();
+          img.src = url;
+        });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [scene]);
+
+  useEffect(() => {
+    let lastWidth = window.innerWidth;
+    let lastHeight = window.innerHeight;
+    const setVh = () => {
+      // Recalculate if width changes (rotation/resize) OR height changes significantly (split-screen/keyboard > 150px)
+      // but ignore small height changes (URL bar hide/show)
+      if (
+        window.innerWidth !== lastWidth ||
+        Math.abs(window.innerHeight - lastHeight) > 150 ||
+        !document.documentElement.style.getPropertyValue('--vh')
+      ) {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        lastWidth = window.innerWidth;
+        lastHeight = window.innerHeight;
+      }
+    };
+    setVh();
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', setVh);
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (scene === 'main-app' && bgAudioRef.current) {
+      bgAudioRef.current.volume = 0.6;
+      bgAudioRef.current.play().catch(() => {});
+    } else if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      if (scene !== 'main-app') {
+        bgAudioRef.current.currentTime = 0;
+      }
+    }
+  }, [scene]);
+
+  // Ensure audio plays upon user interaction in main-app
+  useEffect(() => {
+    const handleGlobalInteraction = () => {
+      if (scene === 'main-app' && bgAudioRef.current) {
+        bgAudioRef.current.play().catch(() => {});
+      }
+    };
+    window.addEventListener('click', handleGlobalInteraction, { passive: true });
+    window.addEventListener('touchstart', handleGlobalInteraction, { passive: true });
+    return () => {
+      window.removeEventListener('click', handleGlobalInteraction);
+      window.removeEventListener('touchstart', handleGlobalInteraction);
+    };
+  }, [scene]);
+
+  // Quản lý trượt từng zone một trong khu vực #BLVD (chống trượt lố, 1 lần vuốt/cuộn = đúng 1 zone)
+  const BLVD_ZONES: ('zone-blvd' | 'zone-18' | 'zone-17' | 'zone-16')[] = [
+    'zone-blvd',
+    'zone-18',
+    'zone-17',
+    'zone-16',
+  ];
+  const isZoneTransitioningRef = React.useRef(false);
+  const zoneTransitionTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const goToZone = React.useCallback((targetIndex: number) => {
+    const nextIdx = Math.max(0, Math.min(3, targetIndex));
+    setActiveZoneIndex(nextIdx);
+    setActiveBlvdZone(BLVD_ZONES[nextIdx]);
+    isZoneTransitioningRef.current = true;
+    if (zoneTransitionTimeoutRef.current) clearTimeout(zoneTransitionTimeoutRef.current);
+    zoneTransitionTimeoutRef.current = setTimeout(() => {
+      isZoneTransitioningRef.current = false;
+    }, 650);
+  }, []);
+
+  // Xử lý sự kiện cuộn chuột / trackpad - 1 lần cuộn sang đúng 1 zone, khóa lại khi đang chuyển cảnh để triệt tiêu momentum gây trượt lố
+  useEffect(() => {
+    if (scene !== 'blvd-black') return;
+
+    const container = document.getElementById('scene-blvd-pure-black');
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+
+      if (isZoneTransitioningRef.current) {
+        e.preventDefault();
+        return;
+      }
+
+      if (Math.abs(e.deltaY) < 18) return;
+
+      if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        if (e.deltaY > 0) {
+          if (activeZoneIndex < 3) {
+            e.preventDefault();
+            goToZone(activeZoneIndex + 1);
+          }
+        } else {
+          if (activeZoneIndex > 0) {
+            e.preventDefault();
+            goToZone(activeZoneIndex - 1);
+          }
+        }
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', onWheel);
+    };
+  }, [scene, activeZoneIndex, goToZone]);
+
+  // Xử lý cử chỉ vuốt cảm ứng trên di động & tablet - 1 lần vuốt sang đúng 1 zone
+  useEffect(() => {
+    if (scene !== 'blvd-black') return;
+
+    const container = document.getElementById('scene-blvd-pure-black');
+    if (!container) return;
+
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let touchStartTime = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+        touchStartTime = Date.now();
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (isZoneTransitioningRef.current) return;
+      if (e.changedTouches.length === 0) return;
+
+      const endY = e.changedTouches[0].clientY;
+      const endX = e.changedTouches[0].clientX;
+      const diffY = touchStartY - endY;
+      const diffX = touchStartX - endX;
+      const duration = Date.now() - touchStartTime;
+
+      const isQuickFlick = duration < 350 && Math.abs(diffY) > 25;
+      const isIntentionalSwipe = Math.abs(diffY) > 40;
+
+      if ((isIntentionalSwipe || isQuickFlick) && Math.abs(diffY) > Math.abs(diffX) * 1.1) {
+        if (diffY > 0) {
+          if (activeZoneIndex < 3) {
+            goToZone(activeZoneIndex + 1);
+          }
+        } else {
+          if (activeZoneIndex > 0) {
+            goToZone(activeZoneIndex - 1);
+          }
+        }
+      }
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [scene, activeZoneIndex, goToZone]);
+
+  // Phím mũi tên lên/xuống hoặc PageUp/PageDown chuyển zone
+  useEffect(() => {
+    if (scene !== 'blvd-black') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isZoneTransitioningRef.current) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        if (activeZoneIndex < 3) {
+          e.preventDefault();
+          goToZone(activeZoneIndex + 1);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (activeZoneIndex > 0) {
+          e.preventDefault();
+          goToZone(activeZoneIndex - 1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [scene, activeZoneIndex, goToZone]);
+
+  const handleBgAudioEnded = () => {
+    setTimeout(() => {
+      if (bgAudioRef.current && scene === 'main-app') {
+        bgAudioRef.current.play().catch(() => {});
+      }
+    }, 5000);
+  };
+
+  useEffect(() => {
+    // Preload custom intro fonts into browser cache immediately
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      Promise.all([
+        document.fonts.load('80px Turista'),
+        document.fonts.load('85px ArialCustom'),
+        document.fonts.load('85px Arial'),
+        document.fonts.load('80px Vespertine'),
+      ]).catch(() => {});
+    }
+
+    // Disable right-click context menu globally
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    // Disable text selection globally via JS events for full coverage
+    const handleSelectStart = (e: Event) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('selectstart', handleSelectStart);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('selectstart', handleSelectStart);
+    };
+  }, []);
+
+  // Khi kết thúc chuỗi intro chuyển sang cảnh blvd-black (màn hình đen tuyền để thiết kế lại)
+  // Dùng phím Escape hoặc nút thoát (nếu cần) để về main-app, không tự động thoát khi click để tiện theo dõi và làm lại
+  useEffect(() => {
+    if (scene !== 'blvd-black') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setScene('main-app');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [scene]);
+
+  // Handle automatic transitions between scenes (Custom sequence timing)
+  useEffect(() => {
+    if (scene === 'intro-play') {
+      const t = setTimeout(() => {
+        setScene('intro-blvd');
+      }, 500); // 0.5s for KC1 ("phát")
+      return () => clearTimeout(t);
+    }
+    if (scene === 'intro-blvd') {
+      const t = setTimeout(() => {
+        setScene('intro-clock-multiple');
+      }, 500); // 0.5s for KC2 ("BLVD")
+      return () => clearTimeout(t);
+    }
+    if (scene === 'intro-clock-multiple') {
+      // Safety fallback timer: Chỉ chuyển sang main-app khi ảnh nền Vespertine ĐÃ LOAD VÀ DECODE XONG!
+      const t = setTimeout(() => {
+        if (vespertineLoadedRef.current) {
+          setScene('main-app');
+        } else {
+          pendingIntroCompleteRef.current = true;
+        }
+      }, 5000);
+      return () => clearTimeout(t);
+    }
+
+    // --- Isolated BLVD Sequence Transitions ---
+    // Scene 'blvd-loading' được kiểm soát tự động bởi tiến trình tải tài nguyên thực tế (0% -> 100%)
+    if (scene === 'blvd-play') {
+      const t = setTimeout(() => {
+        setScene('blvd-text');
+      }, 500); // 0.5s for "phát"
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-text') {
+      const t = setTimeout(() => {
+        setScene('blvd-title-1');
+      }, 500); // 0.5s for "BLVD"
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-title-1') {
+      const t = setTimeout(() => {
+        setScene('blvd-title-2');
+      }, 600); // 0.6s for scene 1 (#BLVD)
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-title-2') {
+      const t = setTimeout(() => {
+        setScene('blvd-color-1');
+      }, 600); // 0.6s for scene 2 (#BLVD + CHANGE IN MIND)
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-color-1') {
+      const t = setTimeout(() => {
+        setScene('blvd-color-2');
+      }, 500); // 0.5s for #474c5a
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-color-2') {
+      const t = setTimeout(() => {
+        setScene('blvd-color-3');
+      }, 500); // 0.5s for #8ace00 (#blvd16)
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-color-3') {
+      const t = setTimeout(() => {
+        setScene('blvd-color-4');
+      }, 500); // 0.5s for BLVD17
+      return () => clearTimeout(t);
+    }
+    if (scene === 'blvd-color-4') {
+      const t = setTimeout(() => {
+        setScene('blvd-black');
+      }, 500); // 0.5s for #BLVD18 with blvd18 background image
+      return () => clearTimeout(t);
+    }
+  }, [scene]);
+
+  return (
+    <main 
+      className="relative w-screen h-[calc(var(--vh,1vh)*100)] overflow-hidden bg-black flex items-center justify-center select-none" 
+      id="main-container"
+    >
+      <audio 
+        ref={bgAudioRef}
+        src="https://files.catbox.moe/op8yd3.mp3"
+        onEnded={handleBgAudioEnded}
+      />
+      
+      {/* Màn hình loading ban đầu: Nền trắng, chữ LOADING viền đen (đổi trắng sang đen và ngược lại so với #blvd-loading) */}
+      {scene === 'pre-intro' && (
+        <div 
+          id="scene-initial-loading"
+          className="absolute inset-0 flex items-center justify-center bg-white z-[100] overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(0, 0, 0, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - initialLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - initialLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Preloaded Background Images (Always active at z-0, hidden behind black scenes 1-3, visible in scenes 4-6 and main app) */}
+      <img
+        id="preload-ultrayoung"
+        src="https://i.ibb.co/tP3rK5bg/ultrayoung.jpg"
+        alt="Boulevard1st Ultrayoung Background"
+        referrerPolicy="no-referrer"
+        loading="eager"
+        fetchPriority="high"
+        className="absolute inset-0 w-full h-full object-cover portrait:object-[49%_center] z-0 opacity-0 pointer-events-none"
+      />
+      <img
+        id="preload-young"
+        src="https://i.ibb.co/Nd6BpwZ2/young.jpg"
+        alt="Boulevard1st Young Background"
+        referrerPolicy="no-referrer"
+        loading="eager"
+        fetchPriority="high"
+        className="absolute inset-0 w-full h-full object-cover portrait:object-[49%_center] z-0 opacity-0 pointer-events-none"
+      />
+      <img
+        id="preload-blvd18"
+        src="https://i.ibb.co/ccfZG4Zk/n-n-blvd18.webp"
+        alt="Boulevard 18 Background"
+        referrerPolicy="no-referrer"
+        loading="eager"
+        fetchPriority="high"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        style={{ opacity: 0.001, transform: 'translateZ(0)', pointerEvents: 'none' }}
+      />
+      <VespertineBackground 
+        onLoaded={() => {
+          vespertineLoadedRef.current = true;
+          setVespertineLoaded(true);
+          if (pendingIntroCompleteRef.current) {
+            pendingIntroCompleteRef.current = false;
+            setScene('main-app');
+          }
+        }}
+        isReady={vespertineLoaded}
+      />
+
+      {/* KC1: Start Screen ("phát") */}
+      {scene === 'intro-play' && (
+        <div 
+          id="scene-play"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 select-none"
+        >
+          <div
+            id="intro-phat-text"
+            className="font-sans text-[clamp(2.5rem,8vw,5rem)] text-white/90 select-none tracking-normal font-normal"
+          >
+            phát
+          </div>
+        </div>
+      )}
+
+      {/* KC2: BLVD Hollow / Stretched Text Screen */}
+      {scene === 'intro-blvd' && (
+        <div 
+          id="scene-blvd"
+          className="absolute inset-0 flex items-center justify-center bg-black z-40 overflow-hidden select-none w-full h-full"
+        >
+          <svg 
+            viewBox="0 0 400 100" 
+            className="w-full h-full" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none"
+              fontSize="110"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+            >
+              BLVD
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Multiple clocks - adaptive lines with fixed speed, runs to completion before entering main-app */}
+      {scene === 'intro-clock-multiple' && (
+        <IntroClock 
+          mode="multiple" 
+          onComplete={() => {
+            // ĐIỀU KIỆN TIÊN QUYẾT: Ảnh nền của giao diện chính PHẢI LOAD & DECODE XONG thì intro mới chạy xong!
+            if (vespertineLoadedRef.current) {
+              setScene('main-app');
+            } else {
+              // Nếu animation đồng hồ chạy xong mà ảnh nền chưa decode xong, giữ màn hình intro chờ cho đến khi ảnh sẵn sàng
+              pendingIntroCompleteRef.current = true;
+            }
+          }} 
+        />
+      )}
+
+      {/* --- SEPARATE HVOC SEQUENCE --- */}
+      {/* Màn hình loading HVOC: LOADING hiện dần từ trái sang phải từ 0% đến 100% như #blvd */}
+      {scene === 'hvoc-loading' && (
+        <div 
+          id="scene-hvoc-loading"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - hvocLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - hvocLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Trang giới thiệu HVOC */}
+      {scene === 'hvoc-intro' && (
+        <HvocIntroScreen 
+          onBack={() => setScene('main-app')} 
+          language={language}
+        />
+      )}
+
+      {/* --- SEPARATE TNTN SEQUENCE --- */}
+      {/* Màn hình loading TNTN: LOADING hiện dần từ trái sang phải từ 0% đến 100% như HVOC và #blvd */}
+      {scene === 'tntn-loading' && (
+        <div 
+          id="scene-tntn-loading"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - tntnLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - tntnLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Trang giới thiệu Đội TNTN */}
+      {scene === 'tntn-intro' && (
+        <TntnIntroScreen 
+          onBack={() => setScene('main-app')} 
+          language={language}
+        />
+      )}
+
+      {/* --- SEPARATE [REIMAGINED] SEQUENCE --- */}
+      {/* Màn hình loading [REIMAGINED]: LOADING hiện dần từ trái sang phải từ 0% đến 100% */}
+      {scene === 'reimagined-loading' && (
+        <div 
+          id="scene-reimagined-loading"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - reimaginedLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - reimaginedLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Trang giới thiệu [REIMAGINED] */}
+      {scene === 'reimagined-intro' && (
+        <ReimaginedIntroScreen 
+          onBack={() => setScene('main-app')} 
+          language={language}
+        />
+      )}
+
+      {/* --- SEPARATE OTHERS SEQUENCE --- */}
+      {/* Màn hình loading OTHERS: LOADING hiện dần từ trái sang phải từ 0% đến 100% */}
+      {scene === 'others-loading' && (
+        <div 
+          id="scene-others-loading"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - othersLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - othersLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Trang giới thiệu Mục Khác (Others) */}
+      {scene === 'others-intro' && (
+        <OthersIntroScreen 
+          onBack={() => setScene('main-app')} 
+          language={language}
+        />
+      )}
+
+      {/* --- SEPARATE #BLVD SEQUENCE --- */}
+      {/* Màn hình loading LOADING hiện dần từ trái sang phải từ 0% đến 100% theo tiến trình tải ảnh & model */}
+      {scene === 'blvd-loading' && (
+        <div 
+          id="scene-blvd-loading"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full px-2 md:px-8"
+        >
+          <svg 
+            viewBox="0 0 1000 120" 
+            className="w-full h-full max-h-[85vh]" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none tracking-tight"
+              fontSize="115"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+              style={{
+                clipPath: `inset(0 ${Math.max(0, 100 - blvdLoadingProgress)}% 0 0)`,
+                WebkitClipPath: `inset(0 ${Math.max(0, 100 - blvdLoadingProgress)}% 0 0)`,
+              }}
+            >
+              LOADING
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {scene === 'blvd-play' && (
+        <div 
+          id="scene-blvd-play"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 select-none"
+        >
+          <div
+            id="blvd-phat-text"
+            className="font-sans text-[clamp(2.5rem,8vw,5rem)] text-white/90 select-none tracking-normal font-normal"
+          >
+            phát
+          </div>
+        </div>
+      )}
+
+      {scene === 'blvd-text' && (
+        <div 
+          id="scene-blvd-outline-text"
+          className="absolute inset-0 flex items-center justify-center bg-black z-50 overflow-hidden select-none w-full h-full"
+        >
+          <svg 
+            viewBox="0 0 400 100" 
+            className="w-full h-full" 
+            preserveAspectRatio="none"
+          >
+            <text
+              x="50%"
+              y="50%"
+              dominantBaseline="central"
+              textAnchor="middle"
+              className="font-archivo font-black select-none pointer-events-none"
+              fontSize="110"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.95)"
+              strokeWidth="3.2"
+            >
+              BLVD
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* BLVD Title Scenes (Scene 1: #BLVD, Scene 2: #BLVD + CHANGE IN MIND stacked like reference) */}
+      {(scene === 'blvd-title-1' || scene === 'blvd-title-2') && (
+        <div 
+          id="scene-blvd-title"
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black z-50 select-none px-4"
+        >
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="font-archivo font-normal not-italic text-white text-[clamp(2.2rem,6.5vw,5.2rem)] tracking-wide leading-[1.15]">
+              #BLVD
+            </div>
+            <div className={`font-archivo font-normal not-italic text-white text-[clamp(2.2rem,6.5vw,5.2rem)] tracking-wide leading-[1.15] ${scene === 'blvd-title-2' ? 'opacity-100' : 'opacity-0 select-none pointer-events-none'}`}>
+              CHANGE IN MIND
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BLVD 3 Visual Color Scenes */}
+      {/* 1. font turista: "#BLVD15" (#BLVD in white, 15 in #EAD478) on #474c5a */}
+      {scene === 'blvd-color-1' && (
+        <div 
+          id="scene-blvd-color-1"
+          className="absolute inset-0 bg-[#474c5a] z-50 select-none flex items-center justify-center overflow-hidden px-4"
+        >
+          <div className="font-turista text-[clamp(3.5rem,11vw,8rem)] select-none leading-none tracking-normal flex items-baseline">
+            <span className="text-white">#BLVD</span>
+            <span className="text-[#EAD478]">15</span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. font arial: "#blvd16" with Charli XCX Brat signature green & blur effect */}
+      {scene === 'blvd-color-2' && (
+        <div 
+          id="scene-blvd-color-2"
+          className="absolute inset-0 bg-[#8ace00] z-50 select-none flex items-center justify-center overflow-hidden"
+        >
+          <div className="brat-box">
+            <span>#blvd16</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. logo #BLVD17 invert: "BLVD17" on #E6E6E6 background */}
+      {scene === 'blvd-color-3' && (
+        <div 
+          id="scene-blvd-color-3"
+          className="absolute inset-0 bg-[#E6E6E6] z-50 select-none flex items-center justify-center overflow-hidden px-4"
+        >
+          <img
+            src="/logo_blvd17.webp"
+            alt="Logo #BLVD17"
+            referrerPolicy="no-referrer"
+            className="h-[clamp(4.5rem,14vw,10rem)] w-auto max-w-[85vw] object-contain invert brightness-105 select-none pointer-events-none"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5B%23BLVD%5D%20%23BLVD17/logo%20%23blvd17.webp";
+            }}
+          />
+        </div>
+      )}
+
+      {/* 4. BLVD 18 background & scene: Pre-mounted at z-40 during blvd-color-3 so it is 100% warmed up and decoded with ZERO frame delay when transitioning to #BLVD18 */}
+      {(scene === 'blvd-color-3' || scene === 'blvd-color-4') && (
+        <div 
+          id="scene-blvd-bg-layer"
+          className={`absolute inset-0 select-none overflow-hidden ${
+            scene === 'blvd-color-3' ? 'z-40 pointer-events-none' : 'z-50'
+          }`}
+        >
+          <img
+            src="https://i.ibb.co/ccfZG4Zk/n-n-blvd18.webp"
+            alt="nền blvd18"
+            referrerPolicy="no-referrer"
+            loading="eager"
+            fetchPriority="high"
+            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none landscape:object-[50%_40%] landscape:-translate-y-[2.5%] landscape:scale-[1.05]"
+          />
+          {scene === 'blvd-color-4' && (
+            <div className="relative z-10 w-full h-full flex items-center justify-center px-4">
+              <div className="font-archivo font-normal text-[clamp(3.5rem,11vw,8rem)] text-black/60 select-none leading-none tracking-normal">
+                #BLVD18
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. Giao diện blvd-black: 4 zone trượt dọc từng zone một theo thứ tự giảm dần (#BLVD -> Zone 18 -> Zone 17 -> Zone 16) */}
+      {scene === 'blvd-black' && (
+        <div 
+          id="scene-blvd-pure-black"
+          className="absolute inset-0 bg-black z-50 select-none overflow-hidden overscroll-none"
+        >
+          {/* Nút back: căn riêng độc lập ở zone #BLVD để không bị lệch, ở các zone 18, 17, 16 thì nằm ngay dưới sublogo */}
+          {activeBlvdZone === 'zone-blvd' ? (
+            <button
+              type="button"
+              id="blvd-back-to-toc-button-blvd"
+              onClick={(e) => {
+                e.stopPropagation();
+                setScene('main-app');
+              }}
+              className="fixed top-6 left-6 md:top-8 md:left-8 z-50 font-archivo font-normal normal-case text-xs md:text-sm tracking-normal text-white/60 hover:text-white transition-colors duration-200 cursor-pointer bg-transparent border-none p-0 outline-none select-none rounded-none pointer-events-auto"
+              title={language === 'vi' ? 'Quay về mục lục' : 'Back to table of contents'}
+            >
+              {language === 'vi' ? 'trở về' : 'back'}
+            </button>
+          ) : (
+            <div 
+              id="blvd-sublogo-fixed-tl"
+              className="fixed top-6 left-6 md:top-8 md:left-8 z-50 select-none flex flex-col items-start justify-start gap-1.5 pointer-events-auto"
+            >
+              <div className="flex items-center justify-start min-h-[36px] gap-2.5 sm:gap-3">
+                {activeBlvdZone === 'zone-18' && (
+                  <>
+                    <div className="font-archivo font-normal text-white/90 text-[clamp(1.5rem,3.2vw,2.5rem)] leading-none tracking-normal transition-all duration-300">
+                      #BLVD18
+                    </div>
+                    <img
+                      src="https://i.ibb.co/pBXrq6cf/affinity.jpg"
+                      alt="Affinity"
+                      title="Affinity"
+                      className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 object-contain rounded-none select-none pointer-events-none shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                  </>
+                )}
+                {activeBlvdZone === 'zone-17' && (
+                  <>
+                    <img
+                      src="/logo_blvd17.webp"
+                      alt="Logo #BLVD17"
+                      referrerPolicy="no-referrer"
+                      className="h-[clamp(1.8rem,3.8vw,2.8rem)] w-auto object-contain brightness-125 select-none pointer-events-none transition-all duration-300"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/Employer/%5B%23BLVD%5D%20%23BLVD17/logo%20%23blvd17.webp";
+                      }}
+                    />
+                    <img
+                      src="https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/canva.webp"
+                      alt="Canva"
+                      title="Canva"
+                      className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 object-contain rounded-none select-none pointer-events-none shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                  </>
+                )}
+                {activeBlvdZone === 'zone-16' && (
+                  <>
+                    <div className="font-arial-custom font-normal text-[#8ace00] text-[clamp(1.5rem,3.2vw,2.5rem)] leading-none tracking-normal transition-all duration-300">
+                      #blvd16
+                    </div>
+                    <img
+                      src="https://raw.githubusercontent.com/boulevardphat/Kho-multimedia-c-a-Blvd/main/blvdarchive/Boulevard1st/iconpack/canva.webp"
+                      alt="Canva"
+                      title="Canva"
+                      className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 object-contain rounded-none select-none pointer-events-none shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Nút chữ back / trở về font archivo thường, nằm ngay dưới logo ở các zone 18, 17, 16 */}
+              <button
+                type="button"
+                id="blvd-back-to-toc-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setScene('main-app');
+                }}
+                className="font-archivo font-normal normal-case text-xs md:text-sm tracking-normal text-white/60 hover:text-white transition-colors duration-200 cursor-pointer bg-transparent border-none p-0 outline-none select-none rounded-none"
+                title={language === 'vi' ? 'Quay về mục lục' : 'Back to table of contents'}
+              >
+                {language === 'vi' ? 'trở về' : 'back'}
+              </button>
+            </div>
+          )}
+
+          {/* Nút reset zoom / đặt lại thu phóng nằm ở bên phải cạnh dưới: hiển thị khi ở Zone 18, 17, 16 trên desktop (ngoại trừ khi xem Instagram), ẩn trên mobile */}
+          {(
+            ((activeBlvdZone === 'zone-18' || activeBlvdZone === 'zone-17') && bookletViewMode !== 'instagram') ||
+            (activeBlvdZone === 'zone-16' && zone16ViewMode === 'carousel')
+          ) && (
+            <button
+              type="button"
+              id="blvd-reset-zoom-desktop"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('blvd-reset-zoom'));
+              }}
+              className="fixed bottom-6 md:bottom-8 right-6 md:right-8 z-[60] hidden md:flex items-center font-archivo font-normal normal-case text-xs sm:text-sm md:text-base tracking-normal text-white/40 hover:text-white transition-colors duration-200 cursor-pointer bg-transparent border-none p-0 outline-none select-none rounded-none pointer-events-auto"
+              title={language === 'vi' ? 'Đặt lại thu phóng' : 'Reset zoom'}
+            >
+              {language === 'vi' ? 'đặt lại thu phóng' : 'reset zoom'}
+            </button>
+          )}
+
+          {/* Ở cạnh dưới màn hình: 18 & 17 có "mô hình 3d / 3d model", "tuyến tính / carousel" và "Instagram". 16 có "tuyến tính / carousel" và "Instagram" */}
+          {(activeBlvdZone === 'zone-18' || activeBlvdZone === 'zone-17' || activeBlvdZone === 'zone-16') && (
+            <div 
+              id="blvd-bottom-mode-text"
+              className="fixed bottom-6 md:bottom-8 inset-x-0 z-50 flex items-center justify-center gap-6 md:gap-8 select-none pointer-events-none"
+            >
+              {activeBlvdZone !== 'zone-16' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBookletViewMode('3d')}
+                    className={`font-archivo font-normal normal-case text-sm md:text-base tracking-normal transition-colors duration-200 cursor-pointer pointer-events-auto ${
+                      bookletViewMode === '3d' ? 'text-white font-medium' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    {language === 'vi' ? 'mô hình 3d' : '3d model'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookletViewMode('carousel')}
+                    className={`font-archivo font-normal normal-case text-sm md:text-base tracking-normal transition-colors duration-200 cursor-pointer pointer-events-auto ${
+                      bookletViewMode === 'carousel' ? 'text-white font-medium' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    {language === 'vi' ? 'tuyến tính' : 'carousel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookletViewMode('instagram')}
+                    className={`font-archivo font-normal normal-case text-sm md:text-base tracking-normal transition-colors duration-200 cursor-pointer pointer-events-auto ${
+                      bookletViewMode === 'instagram' ? 'text-white font-medium' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    Instagram
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setZone16ViewMode('carousel')}
+                    className={`font-archivo font-normal normal-case text-sm md:text-base tracking-normal transition-colors duration-200 cursor-pointer pointer-events-auto ${
+                      zone16ViewMode === 'carousel' ? 'text-white font-medium' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    {language === 'vi' ? 'tuyến tính' : 'carousel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZone16ViewMode('instagram')}
+                    className={`font-archivo font-normal normal-case text-sm md:text-base tracking-normal transition-colors duration-200 cursor-pointer pointer-events-auto ${
+                      zone16ViewMode === 'instagram' ? 'text-white font-medium' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    Instagram
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Container trượt từng zone một mượt mà, chính xác, 1 lần vuốt = 1 zone, không bao giờ bị lố */}
+          <div 
+            id="blvd-zones-slider"
+            className="w-full h-full will-change-transform transition-transform duration-650 ease-[cubic-bezier(0.2,0.9,0.3,1)] flex flex-col"
+            style={{
+              transform: `translate3d(0, -${activeZoneIndex * 100}%, 0)`,
+            }}
+          >
+            {/* ZONE 1 (Đầu tiên): Chữ #BLVD kéo dãn to tràn màn hình & Đoạn văn giới thiệu chính giữa */}
+            <section 
+              id="blvd-zone-main"
+              className="relative w-full h-[calc(var(--vh,1vh)*100)] shrink-0 flex items-center justify-center overflow-hidden"
+            >
+              <svg 
+                viewBox="0 0 450 100" 
+                className="w-full h-full absolute inset-0 pointer-events-none select-none opacity-20" 
+                preserveAspectRatio="none"
+              >
+                <text
+                  x="50%"
+                  y="50%"
+                  dominantBaseline="central"
+                  textAnchor="middle"
+                  className="font-archivo font-black select-none pointer-events-none"
+                  fontSize="105"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.45)"
+                  strokeWidth="1.2"
+                >
+                  #BLVD
+                </text>
+              </svg>
+
+              {/* Đoạn văn giới thiệu font archivo thường, nằm chính giữa màn hình, text trắng, có viền text đen */}
+              <div className="relative z-10 flex flex-col items-center justify-center max-w-3xl sm:max-w-4xl px-6 sm:px-10 md:px-14 text-center pointer-events-none select-none">
+                <p 
+                  className="font-archivo font-normal text-xs sm:text-sm md:text-base lg:text-lg text-white leading-relaxed sm:leading-loose text-justify sm:text-center"
+                  style={{
+                    textShadow: `
+                      -1.5px -1.5px 0 #000,
+                       1.5px -1.5px 0 #000,
+                      -1.5px  1.5px 0 #000,
+                       1.5px  1.5px 0 #000,
+                      -2px 0 0 #000,
+                       2px 0 0 #000,
+                       0 -2px 0 #000,
+                       0  2px 0 #000,
+                       0 2px 8px rgba(0,0,0,0.9)
+                    `,
+                  }}
+                >
+                  {language === 'vi'
+                    ? '#BLVD là một dự án thiết kế nhỏ, được Thuận Phát thực hiện đều đặn vào dịp sinh nhật hàng năm (26/09). Chỉ xuất hiện lặng lẽ trên Instagram, dự án là nơi gom nhặt những nguồn cảm hứng của Phát từ âm nhạc, nghệ thuật thị giác đến văn hóa đại chúng. Nhưng trên hết, đó là lăng kính cá nhân phản chiếu thế giới quan, cuộc sống và những thăng trầm Phát đã trải qua trong suốt một năm. Vượt lên trên một bài đăng khoe khéo "gu" thẩm mỹ hay kỹ năng thiết kế, #BLVD mang theo nhiều hơn một câu chuyện, và gửi gắm nhiều hơn một góc nhìn mới mà Phát đã tự mình gom góp được.'
+                    : "#BLVD is an intimate design project created annually to mark Thuận Phát's birthday (September 26th). Quietly residing on Instagram, the project is a collection of Phát's inspirations - from music and visual arts to pop culture. Above all, it serves as a personal lens reflecting his worldview and the events that have shaped his life over the past year. Far from being just an aesthetic showcase or a display of design skills, #BLVD tells more than just one story, and conveys more than just one newfound perspective."}
+                </p>
+              </div>
+            </section>
+
+            {/* ZONE 2: Zone 18 với Booklet 3D dạng gấp Z-fold (6 tờ, tỉ lệ 4:5, không gap) */}
+            <section 
+              id="blvd-zone-18"
+              className="relative w-full h-[calc(var(--vh,1vh)*100)] shrink-0 flex flex-col items-center justify-center overflow-hidden px-4"
+            >
+              <ZFoldBooklet 
+                id="booklet-zone-18" 
+                mode={bookletViewMode} 
+                pages={BLVD18_PAGES} 
+                aspectRatio="4/5" 
+              />
+            </section>
+
+            {/* ZONE 3: Zone 17 với Booklet 3D tỉ lệ 1:1, 4 tờ (chẵn mặt trước 8, 6, 4, 2; lẻ mặt sau 1, 3, 5, 7; carousel hiện cả 2 mặt trên dưới) */}
+            <section 
+              id="blvd-zone-17"
+              className="relative w-full h-[calc(var(--vh,1vh)*100)] shrink-0 flex flex-col items-center justify-center overflow-hidden px-4"
+            >
+              <ZFoldBooklet 
+                id="booklet-zone-17" 
+                mode={bookletViewMode} 
+                pages={BLVD17_PAGES} 
+                aspectRatio="1/1" 
+                showDualCarousel={true}
+              />
+            </section>
+
+            {/* ZONE 4: Zone 16 (Cuối cùng theo thứ tự giảm dần: 1:1, chỉ carousel) */}
+            <section 
+              id="blvd-zone-16"
+              className="relative w-full h-[calc(var(--vh,1vh)*100)] shrink-0 flex flex-col items-center justify-center overflow-hidden px-4"
+            >
+              <Zone16Carousel id="booklet-zone-16" mode={zone16ViewMode} />
+            </section>
+          </div>
+        </div>
+      )}
+
+      {/* Invisible off-screen preloader to trigger browser font rasterization immediately at start */}
+      <div className="absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none select-none" aria-hidden="true">
+        <span className="font-turista">#BLVD15</span>
+        <span className="font-arial-custom">#blvd16</span>
+        <span className="font-vespertine">BLVD17</span>
+        <span className="font-archivo font-normal">#BLVD18</span>
+      </div>
+
+      {/* Main App Screen (Background Image & Interactive Interface Layouts) */}
+      {scene === 'main-app' && (
+        <div className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto no-scrollbar scroll-smooth snap-y snap-mandatory overscroll-none">
+          <div className="w-full flex flex-col overflow-x-hidden">
+            {/* The 100vh Main Screen View */}
+            <div className="relative w-full h-[calc(var(--vh,1vh)*100)] shrink-0 flex items-center justify-center overflow-hidden snap-start snap-always">
+              {/* Background Image */}
+              <VespertineBackground shiftLeft={false} isReady={vespertineLoaded} />
+
+              {/* Minimal Language Indicator / Switcher in Main App (Top Right) */}
+              <div 
+                id="main-app-lang-bar"
+                className="absolute landscape:top-[6.5%] landscape:right-[6.5%] portrait:top-6 portrait:right-6 z-30 pointer-events-auto flex items-center"
+              >
+                <button
+                  type="button"
+                  id="lang-toggle-button"
+                  onClick={() => {
+                    const next = language === 'vi' ? 'en' : 'vi';
+                    setLanguage(next);
+                    try {
+                      localStorage.setItem('blvd_language', next);
+                    } catch (e) {}
+                  }}
+                  className="group bg-transparent border-0 p-0 text-white/70 hover:text-white transition-all cursor-pointer flex items-center select-none focus:outline-none"
+                  title={`Current language: ${language === 'vi' ? 'Tiếng Việt' : 'English'}. Click to switch.`}
+                >
+                  <span className="font-archivo text-xs tracking-wider lowercase transition-all group-hover:italic">
+                    {language === 'vi' ? 'tiếng việt' : 'english'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Seamless Bottom Shadow (Rich, full-range smooth gradient transition, solid #000000 strictly in the final 1px) */}
+              <div 
+                id="hero-bottom-fade"
+                className="absolute bottom-0 left-0 right-0 h-24 sm:h-28 md:h-32 pointer-events-none z-[5] bg-[linear-gradient(to_bottom,rgba(0,0,0,0)_0%,rgba(0,0,0,0.08)_20%,rgba(0,0,0,0.25)_40%,rgba(0,0,0,0.52)_60%,rgba(0,0,0,0.75)_75%,rgba(0,0,0,0.92)_88%,#000000_calc(100%-1px),#000000_100%)]" 
+              />
+
+              {/* Landscape Layout (Visible only in landscape / horizontal viewports) */}
+              <div 
+                id="safezone-overlay-landscape" 
+                className="hidden landscape:flex absolute inset-0 flex-col justify-end p-[6.5%] pointer-events-none z-10"
+              >
+                {/* Bottom Row */}
+                <div className="relative flex justify-center items-baseline w-full">
+                  {/* Centered Logo aligned with bottom baseline */}
+                  <div 
+                    id="logo-container"
+                    className="flex flex-col items-center justify-center pointer-events-auto w-fit"
+                  >
+                    <h1 
+                      id="logo-text-landscape"
+                      className="font-archivo text-white font-black text-[clamp(2rem,7.6vw,9.125rem)] leading-[0.85] tracking-tighter select-none whitespace-nowrap relative z-10"
+                    >
+                      Boulevard1st
+                    </h1>
+                    <div className="w-full flex justify-center -mt-1 lg:-mt-1.5 relative z-0">
+                      <svg 
+                        width="100%" 
+                        height="100%" 
+                        viewBox="0 0 400 50" 
+                        preserveAspectRatio="none" 
+                        className="w-[78%] sm:w-[80%] h-[clamp(1.35rem,2.7vw,3.6rem)] overflow-visible"
+                      >
+                        <text 
+                          x="200" 
+                          y="36" 
+                          textAnchor="middle" 
+                          textLength="380" 
+                          lengthAdjust="spacingAndGlyphs" 
+                          fontFamily="Archivo, sans-serif" 
+                          fontWeight="300" 
+                          fontSize="42" 
+                          fill="rgba(255, 255, 255, 0.7)" 
+                          style={{ textTransform: 'uppercase' }}
+                        >
+                          DIGITAL ARCHIVE
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Portrait Layout (Visible only in portrait / vertical viewports) */}
+              <div 
+                id="safezone-overlay-portrait" 
+                className="hidden portrait:flex absolute inset-0 pointer-events-none z-10"
+              >
+                {/* Anchor point exactly at 66.5vh, centered horizontally */}
+                <div className="absolute left-1/2 -translate-x-1/2 w-fit pointer-events-auto flex flex-col items-center" style={{ top: 'calc(var(--vh, 1vh) * 66.5)' }}>
+                  {/* Logo and Bottom Row */}
+                  <div className="flex flex-col w-full relative">
+                    <h1 
+                      id="logo-text-portrait"
+                      className="font-archivo text-white font-black text-[clamp(2.5rem,11.5vw,6rem)] leading-[0.85] tracking-tighter select-none whitespace-nowrap relative z-10"
+                    >
+                      Boulevard1st
+                    </h1>
+                    
+                    <div className="w-full flex justify-center -mt-0.5 sm:-mt-1 relative z-0">
+                      <svg 
+                        width="100%" 
+                        height="100%" 
+                        viewBox="0 0 400 50" 
+                        preserveAspectRatio="none" 
+                        className="w-[80%] h-[clamp(1.125rem,3.3vw,2.1rem)] overflow-visible"
+                      >
+                        <text 
+                          x="200" 
+                          y="36" 
+                          textAnchor="middle" 
+                          textLength="380" 
+                          lengthAdjust="spacingAndGlyphs" 
+                          fontFamily="Archivo, sans-serif" 
+                          fontWeight="300" 
+                          fontSize="42" 
+                          fill="rgba(255, 255, 255, 0.7)" 
+                          style={{ textTransform: 'uppercase' }}
+                        >
+                          DIGITAL ARCHIVE
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Page 2: Table of Contents */}
+            <div 
+              ref={tocPageRef}
+              id="page-black-blank"
+              className="relative w-full h-[calc(var(--vh,1vh)*100)] max-h-[calc(var(--vh,1vh)*100)] bg-black shrink-0 z-20 flex items-center justify-between overflow-hidden snap-start snap-always select-none px-4 sm:px-8 md:px-12 lg:px-16"
+            >
+              {/* TABLE OF CONTENTS / MỤC LỤC Sublogo: Fixed aspect ratio vector so overlap & proportions are 100% mathematically locked */}
+              <div 
+                ref={tocTagRef}
+                className="relative z-10 h-[82%] sm:h-[88%] md:h-[92%] w-auto aspect-[160/720] shrink-0 flex items-center justify-center select-none pointer-events-none"
+              >
+                <svg
+                  viewBox="0 0 160 720"
+                  className="h-full w-full overflow-visible"
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <defs>
+                    <style>{`
+                      .toc-sublogo-text {
+                        font-family: Archivo, "Be Vietnam Pro", sans-serif;
+                        font-weight: 900;
+                        font-style: italic;
+                        text-transform: uppercase;
+                        letter-spacing: -0.04em;
+                      }
+                    `}</style>
+                  </defs>
+
+                  {/* Group rotated -90 deg so it reads vertically bottom-to-top */}
+                  <g transform="rotate(-90) translate(-720, 0)">
+                    {language === 'vi' ? (
+                      <>
+                        {/* Vietnamese mode: MỤC LỤC duplicated in 2 overlapping layers like English */}
+                        {/* Layer 1: MỤC LỤC (Background/lower layer) */}
+                        <text
+                          x="0"
+                          y="78"
+                          className="toc-sublogo-text"
+                          fontSize="115"
+                          fill="#262626"
+                          textLength="720"
+                          lengthAdjust="spacingAndGlyphs"
+                        >
+                          MỤC LỤC
+                        </text>
+
+                        {/* Layer 2: MỤC LỤC (Foreground/overlapping layer) */}
+                        <text
+                          x="0"
+                          y="142"
+                          className="toc-sublogo-text"
+                          fontSize="115"
+                          fill="#3c3c3c"
+                          textLength="720"
+                          lengthAdjust="spacingAndGlyphs"
+                        >
+                          MỤC LỤC
+                        </text>
+                      </>
+                    ) : (
+                      <>
+                        {/* English mode: TABLE OF CONTENTS */}
+                        {/* Layer 1: TABLE OF */}
+                        <text
+                          x="0"
+                          y="78"
+                          className="toc-sublogo-text"
+                          fontSize="108"
+                          fill="#262626"
+                          textLength="720"
+                          lengthAdjust="spacingAndGlyphs"
+                        >
+                          TABLE OF
+                        </text>
+
+                        {/* Layer 2: CONTENTS */}
+                        <text
+                          x="0"
+                          y="142"
+                          className="toc-sublogo-text"
+                          fontSize="108"
+                          fill="#3c3c3c"
+                          textLength="720"
+                          lengthAdjust="spacingAndGlyphs"
+                        >
+                          CONTENTS
+                        </text>
+                      </>
+                    )}
+                  </g>
+                </svg>
+              </div>
+
+              {/* Khung hình chữ nhật ở giữa tag MỤC LỤC và danh sách: hiển thị ảnh câu lạc bộ */}
+              {showTocFrame && (
+                <div 
+                  id="toc-image-frame"
+                  aria-hidden="true"
+                  className="hidden landscape:flex portrait:hidden relative z-0 flex-1 my-auto h-[78%] sm:h-[84%] md:h-[88%] border border-white/20 rounded-none pointer-events-none -ml-5 sm:-ml-7 md:-ml-9 mr-4 sm:mr-6 md:mr-8 overflow-hidden items-center justify-center transition-all duration-300 bg-transparent"
+                >
+                  <img
+                    src="https://i.ibb.co/6cTc4nMC/club.jpg"
+                    alt="club"
+                    className="w-full h-full object-cover object-center select-none pointer-events-none rounded-none block opacity-35"
+                    style={{ opacity: 0.35 }}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              )}
+
+              {/* Right Side: Project List */}
+              <div 
+                className={`relative z-10 flex flex-col justify-center select-none ${
+                  showTocFrame 
+                    ? 'shrink-0 w-fit max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl' 
+                    : 'shrink-0 w-fit max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl ml-auto portrait:ml-0 portrait:flex-1 portrait:pl-6 portrait:sm:pl-10'
+                }`}
+              >
+                <div 
+                  ref={tocListInnerRef}
+                  className="w-fit flex flex-col justify-center space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8 text-[clamp(1rem,2.6vw,2.35rem)] text-white/95 font-archivo font-medium tracking-tight leading-snug select-none"
+                >
+                  {/* Item 01: Thông tin cơ bản / Basic Info */}
+                  <TocItem digit={1} onClick={() => setIsBasicInfoOpen(true)}>
+                    {language === 'vi' ? 'Thông tin cơ bản' : 'Basic Information'}
+                  </TocItem>
+
+                  {/* Item 02: TNTN */}
+                  <TocItem digit={2} onClick={handleTntnClick}>
+                    {language === 'vi' ? 'Đội Thanh niên Tình nguyện - Trường THPT Chuyên Hùng Vương' : 'TNTN Team - Hung Vuong for the gifted'}
+                  </TocItem>
+
+                  {/* Item 03: Olympia */}
+                  <TocItem digit={3} onClick={handleHvocClick}>
+                    {language === 'vi' ? 'Câu lạc bộ Olympia - Trường THPT Chuyên Hùng Vương' : 'Hung Vuong Olympia Club - Hung Vuong for the gifted'}
+                  </TocItem>
+
+                  {/* Item 04: #BLVD */}
+                  <TocItem digit={4} onClick={handleBlvdClick}>
+                    #BLVD
+                  </TocItem>
+
+                  {/* Item 05: PAKVARD */}
+                  <TocItem digit={5} onClick={handleReimaginedClick}>
+                    PAKVARD
+                  </TocItem>
+
+                  {/* Item: Khác / Others (không đánh số) */}
+                  <div 
+                    onClick={handleOthersClick}
+                    className="w-fit flex flex-col items-start portrait:mt-2.5 portrait:pt-1.5 cursor-pointer group"
+                    title={language === 'vi' ? 'Khám phá các ấn phẩm khác' : 'Explore other works'}
+                  >
+                    <span className="hover-force-italic text-white/95 group-hover:text-white cursor-pointer transition-colors">
+                      {language === 'vi' ? 'Khác' : 'Others'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Window for "Thông tin cơ bản / Basic Information" */}
+      {isBasicInfoOpen && (
+        <div 
+          id="basic-info-modal-backdrop"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 md:p-8 animate-fade-in"
+          onClick={() => setIsBasicInfoOpen(false)}
+        >
+          {/* Outer Window Frame: Sharp Brutalist border, snug proportional fit without excess vertical space */}
+          <div 
+            id="basic-info-modal-window"
+            className="relative w-full max-w-2xl bg-[#0a0a0a] border border-neutral-800 shadow-2xl flex flex-col justify-between overflow-hidden rounded-none select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button: Positioned directly in the corner without any fake tab bar / header row */}
+            <button
+              type="button"
+              id="close-basic-info-btn"
+              onClick={() => setIsBasicInfoOpen(false)}
+              className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 text-neutral-400 hover:text-white transition-colors cursor-pointer select-none bg-transparent border-0 p-1 flex items-center justify-center group z-30"
+              title={language === 'vi' ? 'Đóng' : 'Close'}
+            >
+              <span className="text-xl sm:text-2xl font-light transform transition-transform duration-300 ease-out group-hover:rotate-90 inline-block leading-none">
+                ✕
+              </span>
+            </button>
+
+            {/* Sunken Bold Italic Typography: Reduced opacity, subtly sunken into dark background */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none overflow-hidden z-0 opacity-50">
+              <div className="flex flex-col items-center justify-center font-archivo font-black italic tracking-tighter uppercase leading-[0.82] text-center w-full pb-6 sm:pb-8">
+                {language === 'vi' ? (
+                  <>
+                    <span className="text-[clamp(2.8rem,9.5vw,5.6rem)] text-[#161616] whitespace-nowrap block">
+                      THÔNG TIN
+                    </span>
+                    <span className="text-[clamp(2.8rem,9.5vw,5.6rem)] text-[#1a1a1a] whitespace-nowrap block">
+                      CƠ BẢN
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[clamp(2.4rem,8.5vw,4.8rem)] text-[#161616] whitespace-nowrap block">
+                      BASIC
+                    </span>
+                    <span className="text-[clamp(2.4rem,8.5vw,4.8rem)] text-[#1a1a1a] whitespace-nowrap block">
+                      INFORMATION
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Upper Content: Stacked top-to-bottom on mobile/portrait, side-by-side on sm+ */}
+            <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-5 md:gap-6 w-full p-4 sm:p-5 md:p-6 pb-3 sm:pb-4 my-auto">
+              {/* Square Image Frame: Centered and sized comfortably on mobile, side-by-side on sm+ */}
+              <div 
+                id="info-avatar-frame"
+                className="shrink-0 w-28 xs:w-32 sm:w-[36%] md:w-[38%] max-w-[220px] aspect-square border border-neutral-700 bg-neutral-900 rounded-none overflow-hidden shadow-2xl mx-auto sm:mx-0"
+              >
+                <img
+                  src="https://i.ibb.co/TD9mb1pB/avatar.jpg"
+                  alt="Avatar"
+                  className="w-full h-full object-cover rounded-none select-none block"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+
+              {/* Content: Centered on mobile, left-aligned on sm+ */}
+              <div className="flex-1 w-full flex flex-col items-center sm:items-start justify-center text-center sm:text-left py-0.5 select-text min-w-0">
+                {/* Row 1: Name */}
+                <h3 className="font-archivo font-black text-lg sm:text-2xl md:text-[1.65rem] text-white tracking-tight uppercase leading-tight mb-0.5 sm:mb-1 text-center sm:text-left truncate max-w-full">
+                  {language === 'vi' ? 'Nguyễn Thuận Phát' : 'Phat Nguyen Thuan'}
+                </h3>
+
+                {/* Row 2: Major */}
+                <p className="font-sans font-medium text-xs sm:text-sm md:text-base text-neutral-300 leading-snug mb-1 sm:mb-1.5 text-center sm:text-left">
+                  {language === 'vi' ? 'Ngành Báo chí/Nguyện vọng định hướng thiết kế' : 'Journalism/Design Track Preference'}
+                </p>
+
+                {/* Row 3: University / School (No underline, clickable with subtle hover feedback) */}
+                <a
+                  href="https://hcmussh.edu.vn/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-sans text-[11px] sm:text-xs md:text-sm text-neutral-400 hover:text-white no-underline transition-colors duration-200 cursor-pointer text-center sm:text-left leading-normal inline-block mb-2 sm:mb-3"
+                  title={language === 'vi' ? 'Trường ĐH KHXH&NV, ĐHQG-HCM' : 'VNUHCM-USSH'}
+                >
+                  {language === 'vi' ? 'Trường ĐH KHXH&NV, ĐHQG-HCM' : 'VNUHCM-USSH'}
+                </a>
+
+                {/* Row 4: Tools / Công cụ sử dụng */}
+                <div className="w-full flex flex-col items-center sm:items-start text-center sm:text-left pt-2 border-t border-neutral-800/90">
+                  <span className="font-archivo font-semibold text-[10px] sm:text-xs text-neutral-400 tracking-wider uppercase mb-1.5 text-center sm:text-left">
+                    {language === 'vi' ? 'Công cụ sử dụng:' : 'Tools:'}
+                  </span>
+                  {/* Tool Icons List: Canva, Affinity, Edits, ibisPaint, Google AI Studio, Filmora */}
+                  <div className="flex items-center justify-center sm:justify-start flex-wrap gap-1.5 sm:gap-2">
+                    {/* Canva */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="Canva"
+                    >
+                      <img 
+                        src="https://i.ibb.co/RTw2phXD/canva.jpg" 
+                        alt="Canva" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* Affinity */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="Affinity"
+                    >
+                      <img 
+                        src="https://i.ibb.co/pBXrq6cf/affinity.jpg" 
+                        alt="Affinity" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* Edits */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="Edits"
+                    >
+                      <img 
+                        src="https://i.ibb.co/Pv9VfwzX/edits.webp" 
+                        alt="Edits" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* ibisPaint */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="ibisPaint"
+                    >
+                      <img 
+                        src="https://i.ibb.co/N66hJX5h/ibispaint.png" 
+                        alt="ibisPaint" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* Google AI Studio */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="Google AI Studio"
+                    >
+                      <img 
+                        src="https://i.ibb.co/7JyGd3tX/google-AIstudio.png" 
+                        alt="Google AI Studio" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* Filmora */}
+                    <div 
+                      className="w-6 h-6 sm:w-7 sm:h-7 bg-neutral-900 flex items-center justify-center shrink-0 rounded-none border border-neutral-700 hover:scale-105 transition-transform overflow-hidden" 
+                      title="Filmora"
+                    >
+                      <img 
+                        src="https://i.ibb.co/v4h21FLG/filmora.png" 
+                        alt="Filmora" 
+                        className="w-full h-full object-cover rounded-none select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Contact Buttons Bar (Spec-inspired from Boulevard1st, flush along bottom edge) */}
+            <div 
+              id="basic-info-contact-bar" 
+              className="relative z-20 w-full grid grid-cols-5 gap-0 border-t border-neutral-800 bg-black/60 select-none"
+            >
+              {/* Button 1: Facebook */}
+              <a
+                href="https://www.facebook.com/hellothisisBLVD17/"
+                target="_blank"
+                rel="noopener noreferrer"
+                id="info-btn-fb"
+                className="py-2.5 sm:py-3 min-h-[44px] px-1 flex items-center justify-center font-archivo font-semibold text-[11px] xs:text-xs sm:text-sm text-white/90 lowercase border-r border-neutral-800 hover:bg-[#1877F2] hover:text-white active:bg-[#0c59be] active:text-white transition-colors cursor-pointer rounded-none no-underline text-center whitespace-nowrap"
+                title="facebook"
+              >
+                facebook
+              </a>
+
+              {/* Button 2: Instagram */}
+              <a
+                href="https://www.instagram.com/endenogatai_dah"
+                target="_blank"
+                rel="noopener noreferrer"
+                id="info-btn-insta"
+                className="py-2.5 sm:py-3 min-h-[44px] px-1 flex items-center justify-center font-archivo font-semibold text-[11px] xs:text-xs sm:text-sm text-white/90 lowercase border-r border-neutral-800 hover:bg-gradient-to-r hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white active:bg-gradient-to-r active:from-[#d87c1e] active:via-[#b81b34] active:to-[#910d68] active:text-white transition-all cursor-pointer rounded-none no-underline text-center whitespace-nowrap"
+                title="instagram"
+              >
+                instagram
+              </a>
+
+              {/* Button 3: TikTok */}
+              <a
+                href="https://www.tiktok.com/@becamextokyubus?is_from_webapp=1&sender_device=pc"
+                target="_blank"
+                rel="noopener noreferrer"
+                id="info-btn-tiktok"
+                className="py-2.5 sm:py-3 min-h-[44px] px-1 flex items-center justify-center font-archivo font-semibold text-[11px] xs:text-xs sm:text-sm text-white/90 lowercase border-r border-neutral-800 hover:bg-gradient-to-r hover:from-[#25F4EE] hover:to-[#FE2C55] hover:text-black active:bg-gradient-to-r active:from-[#1ed7d2] active:to-[#d91e44] active:text-white transition-all cursor-pointer rounded-none no-underline text-center whitespace-nowrap"
+                title="tiktok"
+              >
+                tiktok
+              </a>
+
+              {/* Button 4: Phone / Zalo */}
+              <button
+                type="button"
+                id="info-btn-phone"
+                onClick={handlePhoneClick}
+                className={`py-2.5 sm:py-3 min-h-[44px] px-1 flex items-center justify-center font-archivo font-semibold text-[11px] xs:text-xs sm:text-sm lowercase border-r border-neutral-800 transition-colors cursor-pointer rounded-none border-t-0 border-b-0 border-l-0 text-center whitespace-nowrap ${
+                  phoneCopied 
+                    ? '!bg-[#10B981] !text-black font-bold' 
+                    : 'bg-transparent text-white/90 hover:bg-[#10B981] hover:text-black active:bg-[#047857] active:text-white'
+                }`}
+                title="0833939468"
+              >
+                {phoneCopied ? 'copied' : 'phone'}
+              </button>
+
+              {/* Button 5: Work Email */}
+              <button
+                type="button"
+                id="info-btn-email"
+                onClick={handleEmailClick}
+                className={`py-2.5 sm:py-3 min-h-[44px] px-1 flex items-center justify-center font-archivo font-semibold text-[11px] xs:text-xs sm:text-sm lowercase transition-colors cursor-pointer rounded-none border-0 text-center whitespace-nowrap ${
+                  emailCopied 
+                    ? '!bg-[#EA4335] !text-white font-bold' 
+                    : 'bg-transparent text-white/90 hover:bg-[#EA4335] hover:text-white active:bg-[#b31412] active:text-white'
+                }`}
+                title="thuanphat26092008@gmail.com"
+              >
+                {emailCopied ? 'copied' : 'email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
